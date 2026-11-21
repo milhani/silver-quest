@@ -399,7 +399,35 @@
       color: var(--ink);
     }
     .final-video-dialog::backdrop { background: #101219bb; }
-    .final-video-dialog h2 { margin-bottom: .75rem; font-size: 1.5rem; }
+    .final-video-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 .625rem;
+    }
+    .final-video-close {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+      border: 1px solid #f5f6fa;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #fafbff, #c0c5d0 46%, #ebedf4 72%, #aab0bd);
+      box-shadow: inset 0 1px 2px #fff, 0 3px 8px #0f111980;
+    }
+    .final-video-close:hover { filter: brightness(1.1); }
+    .final-video-close:active { filter: brightness(.9); }
+    .final-video-close::before,
+    .final-video-close::after {
+      content: '';
+      grid-area: 1 / 1;
+      width: 1.125rem;
+      height: 2px;
+      border-radius: 1px;
+      background: #282b35;
+      transform: rotate(45deg);
+    }
+    .final-video-close::after { transform: rotate(-45deg); }
     .final-video-dialog video {
       display: block;
       width: 100%;
@@ -778,11 +806,12 @@
     </article>
   </section>
 </main>
-<dialog id="final-video-dialog" class="final-video-dialog" aria-labelledby="final-video-title">
-  <h2 id="final-video-title">Твоё видео</h2>
+<dialog id="final-video-dialog" class="final-video-dialog" aria-label="Финальное видео">
+  <form class="final-video-actions" method="dialog">
+    <button class="final-video-close" type="submit" aria-label="Закрыть видео"></button>
+  </form>
   <video id="final-video" controls playsinline preload="none"></video>
   <p id="final-video-message" class="final-video-message" role="status" hidden></p>
-  <form method="dialog"><button class="link" type="submit">Закрыть</button></form>
 </dialog>
 <canvas id="burst" class="burst" aria-hidden="true" hidden></canvas>
 <script>
