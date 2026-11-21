@@ -273,9 +273,9 @@
     .check { margin-top: .75rem; }
     .sudoku-board {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(9, minmax(0, 1fr));
       gap: 1px;
-      width: min(100%, 17rem);
+      width: min(100%, 24rem);
       margin-inline: auto;
       border: 2px solid var(--silver);
       background: #7b7d88;
@@ -287,13 +287,13 @@
       border: 1px solid transparent;
       border-radius: 0;
       text-align: center;
-      font-size: 1.375rem;
+      font-size: clamp(1rem, 4.4vw, 1.375rem);
       font-weight: 600;
     }
-    .sudoku-board .sudoku-cell:nth-child(4n + 2) {
+    .sudoku-board .sudoku-cell:is(:nth-child(9n + 3), :nth-child(9n + 6)) {
       border-right: 3px solid #7b7d88;
     }
-    .sudoku-board .sudoku-cell:nth-child(n + 5):nth-child(-n + 8) {
+    .sudoku-board .sudoku-cell:is(:nth-child(n + 19):nth-child(-n + 27), :nth-child(n + 46):nth-child(-n + 54)) {
       border-bottom: 3px solid #7b7d88;
     }
     .sudoku-cell:read-only {
@@ -789,7 +789,7 @@
       </div>
 
       <form id="sudoku-game" hidden>
-        <div id="sudoku-board" class="sudoku-board" role="group" aria-label="Поле судоку четыре на четыре"></div>
+        <div id="sudoku-board" class="sudoku-board" role="group" aria-label="Поле судоку девять на девять"></div>
         <p id="sudoku-status" class="feedback" role="status"></p>
         <button class="primary check" type="submit">Проверить судоку</button>
       </form>
@@ -869,8 +869,8 @@
       answers: ['840']
     },
     {
-      title: 'Судоку 4×4',
-      text: 'Заполни пустые клетки цифрами от 1 до 4. В каждой строке, каждом столбце и каждом квадрате 2×2 каждая цифра встречается один раз.',
+      title: 'Судоку 9×9',
+      text: 'Заполни пустые клетки цифрами от 1 до 9. В каждой строке, каждом столбце и каждом квадрате 3×3 каждая цифра встречается один раз.',
       puzzle: 'sudoku'
     },
     {
@@ -1066,8 +1066,17 @@
   let shadeTiles = [];
   let selectedShade = null;
   let checkedShades = false;
-  const SUDOKU_GIVENS = '1034001221004020';
-  const SUDOKU_SOLUTION = '1234341221434321';
+  const SUDOKU_SIZE = 9;
+  const SUDOKU_GIVENS = [
+    '500670912', '672095040', '190340567',
+    '850760403', '026853790', '700920800',
+    '061507200', '207409030', '045006079'
+  ].join('');
+  const SUDOKU_SOLUTION = [
+    '534678912', '672195348', '198342567',
+    '859761423', '426853791', '713924856',
+    '961537284', '287419635', '345286179'
+  ].join('');
   const sudokuGame = byId('sudoku-game');
   const sudokuBoard = byId('sudoku-board');
   const sudokuStatus = byId('sudoku-status');
@@ -1078,12 +1087,12 @@
     cell.inputMode = 'numeric';
     cell.maxLength = 1;
     cell.autocomplete = 'off';
-    cell.setAttribute('aria-label', `Строка ${Math.floor(index / 4) + 1}, столбец ${index % 4 + 1}`);
+    cell.setAttribute('aria-label', `Строка ${Math.floor(index / SUDOKU_SIZE) + 1}, столбец ${index % SUDOKU_SIZE + 1}`);
     cell.readOnly = digit !== '0';
     cell.value = cell.readOnly ? digit : '';
     if (cell.readOnly) cell.tabIndex = -1;
     cell.addEventListener('input', () => {
-      cell.value = cell.value.replace(/[^1-4]/g, '').slice(0, 1);
+      cell.value = cell.value.replace(/[^1-9]/g, '').slice(0, 1);
       cell.removeAttribute('aria-invalid');
       sudokuStatus.textContent = '';
     });
