@@ -271,6 +271,41 @@
     .feedback { margin: .5rem 0 0; color: var(--error); font-size: .875rem; }
     .feedback:empty { margin: 0; }
     .check { margin-top: .75rem; }
+    .sudoku-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      width: min(100%, 17rem);
+      margin-inline: auto;
+      border: 2px solid var(--silver);
+      background: #7b7d88;
+    }
+    .sudoku-board .sudoku-cell {
+      aspect-ratio: 1;
+      min-height: 0;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 0;
+      text-align: center;
+      font-size: 1.375rem;
+      font-weight: 600;
+    }
+    .sudoku-board .sudoku-cell:nth-child(4n + 2) {
+      border-right: 3px solid #7b7d88;
+    }
+    .sudoku-board .sudoku-cell:nth-child(n + 5):nth-child(-n + 8) {
+      border-bottom: 3px solid #7b7d88;
+    }
+    .sudoku-cell:read-only {
+      background: linear-gradient(145deg, #f1f2f6, #bec4d0);
+      color: #22242d;
+      cursor: default;
+    }
+    .sudoku-board .sudoku-cell[aria-invalid="true"] {
+      border-color: var(--error);
+      color: var(--error);
+    }
+    .sudoku-cell:focus-visible { z-index: 1; outline-offset: -3px; }
     .skip-task {
       display: block;
       width: 100%;
@@ -753,6 +788,12 @@
         </form>
       </div>
 
+      <form id="sudoku-game" hidden>
+        <div id="sudoku-board" class="sudoku-board" role="group" aria-label="Поле судоку четыре на четыре"></div>
+        <p id="sudoku-status" class="feedback" role="status"></p>
+        <button class="primary check" type="submit">Проверить судоку</button>
+      </form>
+
       <div id="shade-game" hidden>
         <div class="shade-key" aria-hidden="true"></div>
         <div id="shade-board" class="shade-board" role="group" aria-label="Сетка из 36 оттенков голубого"></div>
@@ -815,9 +856,9 @@
 </dialog>
 <canvas id="burst" class="burst" aria-hidden="true" hidden></canvas>
 <script>
-  const TOTAL_TASKS = 13;
   const ENABLE_TASK_SKIP = true; // Кнопка для проверки черновика.
-  const STORAGE_KEY = 'silver-quest-prototype-v1';
+  const STORAGE_KEY = 'silver-quest-progress-v2';
+  const LEGACY_STORAGE_KEY = 'silver-quest-prototype-v1';
   const tasks = [
     {
       title: 'Драконий фрукт',
@@ -826,6 +867,11 @@
       answerLabel: 'Номер на весах',
       wrongAnswer: 'Номер пока не совпал. Проверь его на весах и попробуй ещё раз.',
       answers: ['840']
+    },
+    {
+      title: 'Судоку 4×4',
+      text: 'Заполни пустые клетки цифрами от 1 до 4. В каждой строке, каждом столбце и каждом квадрате 2×2 каждая цифра встречается один раз.',
+      puzzle: 'sudoku'
     },
     {
       title: 'Серебряный глиттер',
@@ -925,6 +971,8 @@
       puzzle: 'final-video'
     }
   ];
+  const SUDOKU_INDEX = tasks.findIndex((task) => task.puzzle === 'sudoku');
+  const TOTAL_TASKS = tasks.length - 1; // Судоку идёт между нумерованными заданиями.
 
   const byId = (id) => document.getElementById(id);
   const cover = byId('cover');
@@ -1018,6 +1066,30 @@
   let shadeTiles = [];
   let selectedShade = null;
   let checkedShades = false;
+  const SUDOKU_GIVENS = '1034001221004020';
+  const SUDOKU_SOLUTION = '1234341221434321';
+  const sudokuGame = byId('sudoku-game');
+  const sudokuBoard = byId('sudoku-board');
+  const sudokuStatus = byId('sudoku-status');
+  const sudokuCells = Array.from(SUDOKU_GIVENS, (digit, index) => {
+    const cell = document.createElement('input');
+    cell.className = 'sudoku-cell';
+    cell.type = 'text';
+    cell.inputMode = 'numeric';
+    cell.maxLength = 1;
+    cell.autocomplete = 'off';
+    cell.setAttribute('aria-label', `Строка ${Math.floor(index / 4) + 1}, столбец ${index % 4 + 1}`);
+    cell.readOnly = digit !== '0';
+    cell.value = cell.readOnly ? digit : '';
+    if (cell.readOnly) cell.tabIndex = -1;
+    cell.addEventListener('input', () => {
+      cell.value = cell.value.replace(/[^1-4]/g, '').slice(0, 1);
+      cell.removeAttribute('aria-invalid');
+      sudokuStatus.textContent = '';
+    });
+    sudokuBoard.append(cell);
+    return cell;
+  });
   const burst = byId('burst');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let transitionInProgress = false;
@@ -1029,8 +1101,15 @@
 
   function readProgress() {
     try {
-      const saved = Number(localStorage.getItem(STORAGE_KEY));
-      if (Number.isInteger(saved) && saved >= 0 && saved <= tasks.length) return saved;
+      const current = localStorage.getItem(STORAGE_KEY);
+      if (current != null) {
+        const saved = Number(current);
+        if (Number.isInteger(saved) && saved >= 0 && saved <= tasks.length) return saved;
+      }
+      const legacy = Number(localStorage.getItem(LEGACY_STORAGE_KEY));
+      if (Number.isInteger(legacy) && legacy >= 0 && legacy <= TOTAL_TASKS) {
+        return legacy > SUDOKU_INDEX ? legacy + 1 : legacy;
+      }
     } catch {
       // Квест остаётся доступен, если браузер отключил хранилище.
     }
@@ -1055,8 +1134,9 @@
     skipTask.hidden = !ENABLE_TASK_SKIP || !task || task.puzzle === 'final-video';
     cover.hidden = true;
     game.hidden = false;
-    byId('step').textContent = `Задание ${index + 1} из ${TOTAL_TASKS}`;
-    byId('progress').value = completed;
+    const taskNumber = index + Number(index < SUDOKU_INDEX);
+    byId('step').textContent = index === SUDOKU_INDEX ? 'Мини-игра' : `Задание ${taskNumber} из ${TOTAL_TASKS}`;
+    byId('progress').value = completed - Number(completed > SUDOKU_INDEX);
     title.textContent = task?.title ?? 'Следующее задание готовится';
     title.toggleAttribute('data-visually-hidden', Boolean(task?.hideTitle));
     byId('task-text').textContent = task?.text ?? 'Продолжение появится здесь.';
@@ -1073,6 +1153,7 @@
     else singleLineAnswer.removeAttribute('pattern');
     answer.autocapitalize = task?.autocapitalize ?? (multiline ? 'sentences' : 'none');
     byId('task-controls').hidden = !task?.answers;
+    sudokuGame.hidden = task?.puzzle !== 'sudoku';
     shadeGame.hidden = task?.puzzle !== 'shades';
     if (!shadeGame.hidden) showShadeBoard();
     crystalGame.hidden = task?.puzzle !== 'crystals';
@@ -1349,6 +1430,34 @@
     }
   });
 
+  sudokuGame.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (sudokuGame.hidden || game.hidden || transitionInProgress) return;
+    const empty = sudokuCells.find((cell) => !cell.value);
+    if (empty) {
+      sudokuStatus.textContent = 'Заполни все пустые клетки.';
+      empty.focus();
+      return;
+    }
+    let firstIncorrect;
+    sudokuCells.forEach((cell, index) => {
+      const incorrect = cell.value !== SUDOKU_SOLUTION[index];
+      if (incorrect) {
+        cell.setAttribute('aria-invalid', 'true');
+        firstIncorrect ??= cell;
+      } else {
+        cell.removeAttribute('aria-invalid');
+      }
+    });
+    if (firstIncorrect) {
+      sudokuStatus.textContent = 'Проверь отмеченные клетки.';
+      firstIncorrect.focus();
+      return;
+    }
+    document.activeElement?.blur();
+    completeTask();
+  });
+
   finalHeart.addEventListener('click', () => {
     if (transitionInProgress || finalFlight.hidden || finalVideoDialog.open) return;
     finalVideoMessage.hidden = true;
@@ -1361,10 +1470,10 @@
     });
   });
   finalVideo.addEventListener('playing', () => {
-    if (!finalVideoDialog.open || completed !== TOTAL_TASKS - 1) return;
-    completed = TOTAL_TASKS;
+    if (!finalVideoDialog.open || completed !== tasks.length - 1) return;
+    completed = tasks.length;
     saveProgress();
-    byId('progress').value = completed;
+    byId('progress').value = TOTAL_TASKS;
   });
   finalVideo.addEventListener('error', () => {
     if (!finalVideoDialog.open) return;
@@ -1387,6 +1496,11 @@
     }
     shadeOrder = undefined;
     shadeBoard.replaceChildren();
+    for (const cell of sudokuCells) {
+      if (!cell.readOnly) cell.value = '';
+      cell.removeAttribute('aria-invalid');
+    }
+    sudokuStatus.textContent = '';
     crystalTiles = Array.from(crystalLayout);
     crystalMoves = 0;
     quizIndex = 0;
