@@ -389,20 +389,6 @@
       .rose-cut { transition: none; }
       .rose-stem { animation: none; }
     }
-    .skip-task {
-      display: block;
-      width: 100%;
-      min-height: 3rem;
-      margin-top: .625rem;
-      padding: .625rem 1rem;
-      border: 1px solid #a5a8b0;
-      border-radius: .25rem;
-      background: #35373e;
-      color: var(--ink);
-      font-weight: 600;
-    }
-    .skip-task:hover { background: #474951; }
-    .skip-task:active { background: #292b32; }
     .crystal-game [data-color="ice"] { --crystal: #8fd6fa; }
     .crystal-game [data-color="rose"] { --crystal: #efb6d5; }
     .crystal-game [data-color="violet"] { --crystal: #bca6f9; }
@@ -988,7 +974,6 @@
         </button>
         <button id="final-restart" class="primary final-restart" type="button">Вернуть в начало</button>
       </div>
-      <button id="skip-task" class="skip-task" type="button" hidden>Пропустить задание</button>
     </article>
   </section>
 </main>
@@ -1001,7 +986,6 @@
 </dialog>
 <canvas id="burst" class="burst" aria-hidden="true" hidden></canvas>
 <script>
-  const ENABLE_TASK_SKIP = true; // Кнопка для проверки черновика.
   const STORAGE_KEY = 'silver-quest-progress-v3';
   const PREVIOUS_STORAGE_KEY = 'silver-quest-progress-v2';
   const LEGACY_STORAGE_KEY = 'silver-quest-prototype-v1';
@@ -1403,7 +1387,6 @@
 
   function showTask(index, moveFocus = true) {
     const task = tasks[index];
-    skipTask.hidden = !ENABLE_TASK_SKIP || !task || task.puzzle === 'final-video';
     cover.hidden = true;
     game.hidden = false;
     byId('step').textContent = task?.interlude ? 'Мини-игра' : `Задание ${numberedTasksBefore(index) + 1} из ${TOTAL_TASKS}`;
@@ -1664,7 +1647,6 @@
     manicureOverview.hidden = true;
     manicureEditor.hidden = false;
     byId('task-text').hidden = true;
-    skipTask.hidden = true;
     window.scrollTo(0, 0);
     manicureEditorTitle.focus({ preventScroll: true });
   }
@@ -1683,7 +1665,6 @@
     manicureEditor.hidden = true;
     manicureOverview.hidden = false;
     byId('task-text').hidden = false;
-    skipTask.hidden = !ENABLE_TASK_SKIP;
     updateManicure();
     window.scrollTo(0, 0);
     button.focus({ preventScroll: true });
@@ -1745,13 +1726,6 @@
 
   finishManicure.addEventListener('click', () => {
     if (!manicure.hidden && !activeNail && !transitionInProgress && paintedNails.size === manicureNails.length) {
-      completeTask();
-    }
-  });
-
-  const skipTask = byId('skip-task');
-  skipTask.addEventListener('click', () => {
-    if (!skipTask.hidden && !transitionInProgress && !game.hidden && tasks[completed]) {
       completeTask();
     }
   });
